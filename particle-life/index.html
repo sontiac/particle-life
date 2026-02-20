@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Particle Life</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a0f;
+    color: #c8c8d0;
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  canvas {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+
+  #ui {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    user-select: none;
+  }
+
+  #title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #e0e0e8;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  #subtitle {
+    font-size: 11px;
+    color: #666;
+    margin-bottom: 8px;
+    line-height: 1.4;
+    max-width: 260px;
+  }
+
+  .panel {
+    background: rgba(15, 15, 25, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px;
+    min-width: 240px;
+  }
+
+  .panel-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #555;
+    margin-bottom: 10px;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #b0b0bb;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  button:hover {
+    background: rgba(255,255,255,0.12);
+    color: #e0e0e8;
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  button:active {
+    transform: scale(0.97);
+  }
+
+  button.accent {
+    background: rgba(100, 140, 255, 0.15);
+    border-color: rgba(100, 140, 255, 0.25);
+    color: #8ab4ff;
+  }
+
+  button.accent:hover {
+    background: rgba(100, 140, 255, 0.25);
+  }
+
+  button.preset-btn.active {
+    background: rgba(100, 140, 255, 0.25);
+    border-color: rgba(100, 140, 255, 0.5);
+    color: #c0d8ff;
+    box-shadow: 0 0 8px rgba(100, 140, 255, 0.15);
+  }
+
+  .help-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #999;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    font-size: 11px;
+    line-height: 20px;
+    text-align: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .help-btn:hover {
+    color: #ccc;
+    border-color: rgba(255,255,255,0.3);
+  }
+
+  #info-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #info-modal-overlay.visible {
+    display: flex;
+  }
+
+  #info-modal {
+    background: #12121e;
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 340px;
+    width: 90%;
+  }
+
+  #info-modal h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #e0e0e8;
+    margin-bottom: 16px;
+  }
+
+  .info-item {
+    margin-bottom: 12px;
+  }
+
+  .info-item-name {
+    font-size: 11px;
+    font-weight: 600;
+    color: #8ab4ff;
+    margin-bottom: 2px;
+  }
+
+  .info-item-desc {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.4;
+  }
+
+  #info-modal-close {
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .slider-group {
+    margin-top: 8px;
+  }
+
+  .slider-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #777;
+    margin-bottom: 4px;
+  }
+
+  .slider-label span:last-child {
+    color: #999;
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: #8ab4ff;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #0a0a0f;
+  }
+
+  #matrix-display {
+    margin-top: 10px;
+  }
+
+  #matrix-display table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  #matrix-display td {
+    width: 28px;
+    height: 22px;
+    text-align: center;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+    border-radius: 3px;
+    padding: 2px;
+  }
+
+  #matrix-display .header-cell {
+    font-weight: 600;
+    font-size: 10px;
+  }
+
+  #stats {
+    position: fixed;
+    bottom: 16px;
+    left: 16px;
+    font-size: 11px;
+    color: #444;
+    z-index: 10;
+  }
+
+  #help-hint {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    font-size: 11px;
+    color: #333;
+    z-index: 10;
+  }
+
+  .collapsed .panel-body { display: none; }
+  .collapsed .panel-title::after { content: ' +'; }
+
+  button.mute-btn {
+    font-size: 16px;
+    padding: 6px 10px;
+    line-height: 1;
+  }
+
+  button.mute-btn.muted {
+    opacity: 0.4;
+  }
+
+  .audio-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .audio-row input[type="range"] {
+    flex: 1;
+  }
+
+  @media (max-width: 600px) {
+    #ui { top: 8px; left: 8px; }
+    .panel { min-width: 200px; padding: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div id="ui">
+  <div id="title">Particle Life</div>
+  <div id="subtitle">Emergent behavior from simple attraction rules. Each color attracts or repels every other color — complexity arises from simplicity.</div>
+
+  <div class="panel">
+    <div class="panel-title">Rules</div>
+    <div class="panel-body">
+      <div class="btn-row">
+        <button class="accent" onclick="randomize()">Randomize</button>
+        <button class="preset-btn active" id="btn-symmetry" onclick="selectPreset('symmetry')">Symmetry</button>
+        <button class="preset-btn" id="btn-chains" onclick="selectPreset('chains')">Chains</button>
+        <button class="preset-btn" id="btn-orbits" onclick="selectPreset('orbits')">Orbits</button>
+        <button class="help-btn" onclick="toggleInfoModal()">?</button>
+      </div>
+      <div id="matrix-display"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Parameters</div>
+    <div class="panel-body">
+      <div class="slider-group">
+        <div class="slider-label"><span>Speed</span><span id="speed-val">0.3x</span></div>
+        <input type="range" id="speed" min="0.02" max="2.0" step="0.02" value="0.3">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Friction</span><span id="friction-val">0.05</span></div>
+        <input type="range" id="friction" min="0.01" max="0.2" step="0.005" value="0.05">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Force Range</span><span id="range-val">120</span></div>
+        <input type="range" id="forceRange" min="40" max="250" step="5" value="120">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Force Scale</span><span id="scale-val">1.0</span></div>
+        <input type="range" id="forceScale" min="0.1" max="3.0" step="0.1" value="1.0">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Particles</span><span id="count-val">1500</span></div>
+        <input type="range" id="particleCount" min="200" max="4000" step="100" value="1500">
+      </div>
+      <div class="btn-row" style="margin-top: 10px;">
+        <button onclick="resetParticles()">Reset Positions</button>
+        <button onclick="togglePause()">Pause</button>
+        <button onclick="toggleTrails()">Trails</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Audio</div>
+    <div class="panel-body">
+      <div class="audio-row">
+        <button class="mute-btn" id="mute-btn" onclick="toggleMute()">&#x1f50a;</button>
+        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.5">
+      </div>
+      <div class="slider-group">
+        <div class="slider-label"><span>Reverb</span><span id="reverb-val">0.4</span></div>
+        <input type="range" id="reverb" min="0" max="1" step="0.05" value="0.4">
+      </div>
+      <div id="audio-hint" style="font-size:10px; color:#555; margin-top:6px;">click anywhere to start audio</div>
+    </div>
+  </div>
+</div>
+
+<div id="info-modal-overlay" onclick="if(event.target===this)toggleInfoModal()">
+  <div id="info-modal">
+    <h3>Presets</h3>
+    <div class="info-item">
+      <div class="info-item-name">Randomize</div>
+      <div class="info-item-desc">Re-rolls the rules within the current preset. Every species gets a fresh set of attractions and repulsions.</div>
+    </div>
+    <div class="info-item">
+      <div class="info-item-name">Symmetry</div>
+      <div class="info-item-desc">If red likes blue, blue likes red back. Creates crystals, cell membranes, and stable symbiotic clusters.</div>
+    </div>
+    <div class="info-item">
+      <div class="info-item-name">Chains</div>
+      <div class="info-item-desc">Each species chases the next and flees the previous, forming a ring. Creates spiraling predator-prey pursuit dynamics.</div>
+    </div>
+    <div class="info-item">
+      <div class="info-item-name">Orbits</div>
+      <div class="info-item-desc">Neighboring species attract, distant ones repel. Creates solar-system-like formations and spinning clusters.</div>
+    </div>
+    <button id="info-modal-close" onclick="toggleInfoModal()">Got it</button>
+  </div>
+</div>
+
+<div id="stats"></div>
+<div id="help-hint">click + drag to push particles</div>
+
+<script>
+// ============================================================
+// PARTICLE LIFE — Emergent artificial life simulation
+// ============================================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// --- Config ---
+const SPECIES_COLORS = [
+  '#ff6b6b', // red
+  '#51cf66', // green
+  '#339af0', // blue
+  '#fcc419', // yellow
+  '#cc5de8', // purple
+  '#22b8cf', // cyan
+  '#ff922b', // orange
+  '#f06595', // pink
+];
+
+const NUM_SPECIES = 7;
+let numParticles = 1500;
+let friction = 0.05;
+let forceRange = 120;
+let forceScale = 1.0;
+let speed = 0.3;
+let paused = false;
+let trails = false;
+
+// --- State ---
+let attractionMatrix = [];
+let particles = [];
+let mouseDown = false;
+let mouseX = 0, mouseY = 0;
+
+// --- Spatial hash ---
+let cellSize = 130;
+let grid = {};
+let gridW, gridH;
+
+// ============================================================
+// INITIALIZATION
+// ============================================================
+
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+
+function createMatrix() {
+  attractionMatrix = [];
+  for (let i = 0; i < NUM_SPECIES; i++) {
+    attractionMatrix[i] = [];
+    for (let j = 0; j < NUM_SPECIES; j++) {
+      attractionMatrix[i][j] = Math.random() * 2 - 1;
+    }
+  }
+}
+
+function createParticles() {
+  particles = [];
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const spread = Math.min(w, h) * 0.35;
+
+  for (let i = 0; i < numParticles; i++) {
+    // Spawn in a soft circle
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.random() * spread;
+    particles.push({
+      x: cx + Math.cos(angle) * r,
+      y: cy + Math.sin(angle) * r,
+      vx: 0,
+      vy: 0,
+      species: Math.floor(Math.random() * NUM_SPECIES),
+    });
+  }
+}
+
+function resetParticles() {
+  createParticles();
+}
+
+let activePreset = null; // null = pure random
+
+function setActivePresetUI(name) {
+  activePreset = name;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  if (name) {
+    const btn = document.getElementById('btn-' + name);
+    if (btn) btn.classList.add('active');
+  }
+}
+
+function selectPreset(name) {
+  if (activePreset === name) {
+    // Clicking active preset deselects it (back to random)
+    setActivePresetUI(null);
+    playSfx(300, 0.1, 'sine');
+    return;
+  }
+  switch (name) {
+    case 'symmetry': applySymmetry(); break;
+    case 'chains':   applyChains(); break;
+    case 'orbits':   applyOrbits(); break;
+  }
+  setActivePresetUI(name);
+  playSfx(520, 0.12, 'sine');
+}
+
+function randomize() {
+  if (activePreset) {
+    // Re-apply the active preset (re-rolls for symmetry)
+    switch (activePreset) {
+      case 'symmetry': applySymmetry(); break;
+      case 'chains':   applyChains(); break;
+      case 'orbits':   applyOrbits(); break;
+    }
+  } else {
+    createMatrix();
+    renderMatrix();
+  }
+  playSfx(880, 0.15, 'sine');
+  setTimeout(() => playSfx(1100, 0.12, 'sine'), 60);
+}
+
+function toggleInfoModal() {
+  const overlay = document.getElementById('info-modal-overlay');
+  overlay.classList.toggle('visible');
+}
+
+function applySymmetry() {
+  createMatrix();
+  for (let i = 0; i < NUM_SPECIES; i++) {
+    for (let j = i + 1; j < NUM_SPECIES; j++) {
+      const avg = (attractionMatrix[i][j] + attractionMatrix[j][i]) / 2;
+      attractionMatrix[i][j] = avg;
+      attractionMatrix[j][i] = avg;
+    }
+  }
+  renderMatrix();
+}
+
+function applyChains() {
+  for (let i = 0; i < NUM_SPECIES; i++) {
+    for (let j = 0; j < NUM_SPECIES; j++) {
+      if (j === (i + 1) % NUM_SPECIES) {
+        attractionMatrix[i][j] = 0.8;
+      } else if (i === (j + 1) % NUM_SPECIES) {
+        attractionMatrix[i][j] = -0.6;
+      } else if (i === j) {
+        attractionMatrix[i][j] = 0.15;
+      } else {
+        attractionMatrix[i][j] = -0.1;
+      }
+    }
+  }
+  renderMatrix();
+}
+
+function applyOrbits() {
+  for (let i = 0; i < NUM_SPECIES; i++) {
+    for (let j = 0; j < NUM_SPECIES; j++) {
+      if (i === j) {
+        attractionMatrix[i][j] = -0.2;
+      } else {
+        const dist = Math.min(Math.abs(i - j), NUM_SPECIES - Math.abs(i - j));
+        attractionMatrix[i][j] = dist === 1 ? 0.6 : dist === 2 ? -0.3 : 0.0;
+      }
+    }
+  }
+  renderMatrix();
+}
+
+function togglePause() { paused = !paused; }
+function toggleTrails() { trails = !trails; }
+
+// ============================================================
+// SPATIAL HASHING
+// ============================================================
+
+function buildGrid() {
+  grid = {};
+  cellSize = Math.max(forceRange, 40);
+  gridW = Math.ceil(canvas.width / cellSize);
+  gridH = Math.ceil(canvas.height / cellSize);
+
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    const cx = Math.floor(p.x / cellSize);
+    const cy = Math.floor(p.y / cellSize);
+    const key = cx + cy * gridW;
+    if (!grid[key]) grid[key] = [];
+    grid[key].push(i);
+  }
+}
+
+function getNeighborIndices(px, py) {
+  const result = [];
+  const cx = Math.floor(px / cellSize);
+  const cy = Math.floor(py / cellSize);
+
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let dy = -1; dy <= 1; dy++) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= gridW || ny >= gridH) continue;
+      const key = nx + ny * gridW;
+      if (grid[key]) {
+        for (let k = 0; k < grid[key].length; k++) {
+          result.push(grid[key][k]);
+        }
+      }
+    }
+  }
+  return result;
+}
+
+// ============================================================
+// PHYSICS
+// ============================================================
+
+function step(dt) {
+  buildGrid();
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const rMax = forceRange;
+  const rMin = rMax * 0.3; // repulsion zone
+
+  for (let i = 0; i < particles.length; i++) {
+    const a = particles[i];
+    let fx = 0, fy = 0;
+
+    const neighbors = getNeighborIndices(a.x, a.y);
+
+    for (let ni = 0; ni < neighbors.length; ni++) {
+      const j = neighbors[ni];
+      if (i === j) continue;
+      const b = particles[j];
+
+      let dx = b.x - a.x;
+      let dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (dist === 0 || dist > rMax) continue;
+
+      dx /= dist;
+      dy /= dist;
+
+      let force = 0;
+
+      if (dist < rMin) {
+        // Universal short-range repulsion (prevents clumping)
+        force = (dist / rMin - 1);
+      } else {
+        // Attraction/repulsion based on matrix
+        const attraction = attractionMatrix[a.species][b.species];
+        const t = (dist - rMin) / (rMax - rMin);
+        // Bell-shaped force curve: peak at midpoint
+        force = attraction * (1 - Math.abs(2 * t - 1));
+      }
+
+      force *= forceScale;
+      fx += dx * force;
+      fy += dy * force;
+    }
+
+    // Mouse interaction
+    if (mouseDown) {
+      const dx = mouseX - a.x;
+      const dy = mouseY - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > 0 && dist < 200) {
+        const strength = (1 - dist / 200) * 5;
+        fx += (dx / dist) * strength;
+        fy += (dy / dist) * strength;
+      }
+    }
+
+    a.vx += fx * dt;
+    a.vy += fy * dt;
+
+    // Friction
+    a.vx *= (1 - friction);
+    a.vy *= (1 - friction);
+
+    // Update position
+    a.x += a.vx * dt;
+    a.y += a.vy * dt;
+
+    // Wrap around edges
+    if (a.x < 0) a.x += w;
+    if (a.x >= w) a.x -= w;
+    if (a.y < 0) a.y += h;
+    if (a.y >= h) a.y -= h;
+  }
+}
+
+// ============================================================
+// RENDERING
+// ============================================================
+
+function render() {
+  if (trails) {
+    ctx.fillStyle = 'rgba(10, 10, 15, 0.15)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Sort by species for batched draw calls
+  const bySpecies = new Array(NUM_SPECIES);
+  for (let s = 0; s < NUM_SPECIES; s++) bySpecies[s] = [];
+  for (let i = 0; i < particles.length; i++) {
+    bySpecies[particles[i].species].push(particles[i]);
+  }
+
+  for (let s = 0; s < NUM_SPECIES; s++) {
+    const list = bySpecies[s];
+    if (list.length === 0) continue;
+
+    const color = SPECIES_COLORS[s];
+
+    // Glow layer
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = color;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Core layer
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = color;
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+// ============================================================
+// MATRIX DISPLAY
+// ============================================================
+
+function renderMatrix() {
+  const container = document.getElementById('matrix-display');
+  let html = '<table>';
+
+  // Header row
+  html += '<tr><td></td>';
+  for (let j = 0; j < NUM_SPECIES; j++) {
+    html += `<td class="header-cell" style="color:${SPECIES_COLORS[j]}">●</td>`;
+  }
+  html += '</tr>';
+
+  for (let i = 0; i < NUM_SPECIES; i++) {
+    html += `<tr><td class="header-cell" style="color:${SPECIES_COLORS[i]}">●</td>`;
+    for (let j = 0; j < NUM_SPECIES; j++) {
+      const v = attractionMatrix[i][j];
+      const r = Math.round(Math.max(0, -v) * 200);
+      const g = Math.round(Math.max(0, v) * 200);
+      const bg = `rgba(${r}, ${g}, 40, 0.25)`;
+      html += `<td style="background:${bg}; color:${v > 0 ? '#6f6' : '#f66'}">${v.toFixed(1)}</td>`;
+    }
+    html += '</tr>';
+  }
+
+  html += '</table>';
+  container.innerHTML = html;
+}
+
+// ============================================================
+// SLIDER BINDINGS
+// ============================================================
+
+function bindSliders() {
+  const frictionEl = document.getElementById('friction');
+  const rangeEl = document.getElementById('forceRange');
+  const scaleEl = document.getElementById('forceScale');
+  const countEl = document.getElementById('particleCount');
+
+  const speedEl = document.getElementById('speed');
+  speedEl.addEventListener('input', () => {
+    speed = parseFloat(speedEl.value);
+    document.getElementById('speed-val').textContent = speed.toFixed(2) + 'x';
+  });
+
+  frictionEl.addEventListener('input', () => {
+    friction = parseFloat(frictionEl.value);
+    document.getElementById('friction-val').textContent = friction.toFixed(3);
+  });
+
+  rangeEl.addEventListener('input', () => {
+    forceRange = parseInt(rangeEl.value);
+    document.getElementById('range-val').textContent = forceRange;
+  });
+
+  scaleEl.addEventListener('input', () => {
+    forceScale = parseFloat(scaleEl.value);
+    document.getElementById('scale-val').textContent = forceScale.toFixed(1);
+  });
+
+  countEl.addEventListener('input', () => {
+    const newCount = parseInt(countEl.value);
+    document.getElementById('count-val').textContent = newCount;
+    if (newCount > numParticles) {
+      // Add particles
+      const w = canvas.width;
+      const h = canvas.height;
+      for (let i = numParticles; i < newCount; i++) {
+        particles.push({
+          x: Math.random() * w,
+          y: Math.random() * h,
+          vx: 0, vy: 0,
+          species: Math.floor(Math.random() * NUM_SPECIES),
+        });
+      }
+    } else {
+      particles.length = newCount;
+    }
+    numParticles = newCount;
+  });
+}
+
+// ============================================================
+// MOUSE / TOUCH
+// ============================================================
+
+canvas.addEventListener('mousedown', (e) => { mouseDown = true; mouseX = e.clientX; mouseY = e.clientY; playClickSfx(); });
+canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+canvas.addEventListener('mouseup', () => { mouseDown = false; playReleaseSfx(); });
+
+canvas.addEventListener('touchstart', (e) => {
+  mouseDown = true;
+  mouseX = e.touches[0].clientX;
+  mouseY = e.touches[0].clientY;
+  playClickSfx();
+}, { passive: true });
+canvas.addEventListener('touchmove', (e) => {
+  mouseX = e.touches[0].clientX;
+  mouseY = e.touches[0].clientY;
+}, { passive: true });
+canvas.addEventListener('touchend', () => { mouseDown = false; playReleaseSfx(); }, { passive: true });
+
+// ============================================================
+// AUDIO ENGINE — Generative ambient soundscape
+// ============================================================
+
+let audioCtx = null;
+let audioStarted = false;
+let audioMuted = false;
+let masterVolume = 0.5;
+let reverbMix = 0.4;
+
+// Nodes
+let masterGain = null;
+let dryGain = null;
+let wetGain = null;
+let convolverNode = null;
+let compressor = null;
+let speciesOscs = [];    // { osc, gain, filter } per species
+let droneOsc = null;
+let droneGain = null;
+let noiseNode = null;
+let noiseGain = null;
+
+// Pentatonic scale frequencies for species (C minor pentatonic, spread across octaves)
+const SPECIES_NOTES = [
+  65.41,   // C2
+  77.78,   // Eb2
+  87.31,   // F2
+  98.00,   // G2
+  116.54,  // Bb2
+  130.81,  // C3
+  155.56,  // Eb3
+];
+
+// Smoothed analysis values
+let speciesEnergy = new Float32Array(NUM_SPECIES);
+let speciesDensity = new Float32Array(NUM_SPECIES);
+let totalEnergy = 0;
+let audioAnalysisFrame = 0;
+
+function createImpulseResponse(duration, decay) {
+  const rate = audioCtx.sampleRate;
+  const length = rate * duration;
+  const impulse = audioCtx.createBuffer(2, length, rate);
+  for (let ch = 0; ch < 2; ch++) {
+    const data = impulse.getChannelData(ch);
+    // Generate noise and apply smooth exponential decay
+    for (let i = 0; i < length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-decay * i / length);
+    }
+    // Multi-pass moving average to smooth the impulse (removes grain)
+    for (let pass = 0; pass < 4; pass++) {
+      const windowSize = Math.floor(rate * 0.004); // 4ms window
+      let sum = 0;
+      for (let i = 0; i < Math.min(windowSize, length); i++) sum += data[i];
+      for (let i = 0; i < length; i++) {
+        const addIdx = i + windowSize;
+        const removeIdx = i - 1;
+        if (addIdx < length) sum += data[addIdx];
+        if (removeIdx >= 0) sum -= data[removeIdx];
+        const count = Math.min(addIdx + 1, length) - Math.max(0, i);
+        data[i] = sum / count;
+      }
+    }
+    // Re-normalize
+    let peak = 0;
+    for (let i = 0; i < length; i++) peak = Math.max(peak, Math.abs(data[i]));
+    if (peak > 0) {
+      for (let i = 0; i < length; i++) data[i] /= peak;
+    }
+    // Re-apply decay envelope cleanly
+    for (let i = 0; i < length; i++) {
+      data[i] *= Math.exp(-decay * i / length);
+    }
+  }
+  return impulse;
+}
+
+function createNoiseSource() {
+  const bufferSize = audioCtx.sampleRate * 2;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  return source;
+}
+
+function initAudio() {
+  if (audioStarted) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  audioStarted = true;
+
+  document.getElementById('audio-hint').textContent = 'audio active';
+  document.getElementById('audio-hint').style.color = '#4a7';
+
+  // Master chain: sources -> compressor -> dry/wet split -> destination
+  compressor = audioCtx.createDynamicsCompressor();
+  compressor.threshold.value = -24;
+  compressor.knee.value = 12;
+  compressor.ratio.value = 4;
+
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = masterVolume;
+
+  dryGain = audioCtx.createGain();
+  dryGain.gain.value = 1 - reverbMix;
+
+  wetGain = audioCtx.createGain();
+  wetGain.gain.value = reverbMix;
+
+  convolverNode = audioCtx.createConvolver();
+  convolverNode.buffer = createImpulseResponse(3.5, 2.5);
+
+  // Routing
+  compressor.connect(masterGain);
+  masterGain.connect(dryGain);
+  masterGain.connect(convolverNode);
+  convolverNode.connect(wetGain);
+  dryGain.connect(audioCtx.destination);
+  wetGain.connect(audioCtx.destination);
+
+  // --- Sub drone ---
+  droneOsc = audioCtx.createOscillator();
+  droneOsc.type = 'sine';
+  droneOsc.frequency.value = 32.7; // C1
+  droneGain = audioCtx.createGain();
+  droneGain.gain.value = 0.06;
+  droneOsc.connect(droneGain);
+  droneGain.connect(compressor);
+  droneOsc.start();
+
+  // --- Filtered noise bed ---
+  noiseNode = createNoiseSource();
+  noiseGain = audioCtx.createGain();
+  noiseGain.gain.value = 0.008;
+  const noiseFilt = audioCtx.createBiquadFilter();
+  noiseFilt.type = 'bandpass';
+  noiseFilt.frequency.value = 400;
+  noiseFilt.Q.value = 0.5;
+  noiseNode.connect(noiseFilt);
+  noiseFilt.connect(noiseGain);
+  noiseGain.connect(compressor);
+  noiseNode.start();
+
+  // --- Per-species oscillators ---
+  for (let s = 0; s < NUM_SPECIES; s++) {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = SPECIES_NOTES[s];
+
+    // Second oscillator slightly detuned for warmth
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.value = SPECIES_NOTES[s] * 2.002; // octave up, slight detune
+
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 200;
+    filter.Q.value = 2;
+
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0;
+
+    osc.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain);
+    gain.connect(compressor);
+
+    osc.start();
+    osc2.start();
+
+    speciesOscs.push({ osc, osc2, gain, filter });
+  }
+}
+
+function analyzeSimulation() {
+  // Compute kinetic energy and clustering density per species
+  const ke = new Float32Array(NUM_SPECIES);
+  const count = new Float32Array(NUM_SPECIES);
+  const avgX = new Float32Array(NUM_SPECIES);
+  const avgY = new Float32Array(NUM_SPECIES);
+
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    const s = p.species;
+    ke[s] += p.vx * p.vx + p.vy * p.vy;
+    count[s]++;
+    avgX[s] += p.x;
+    avgY[s] += p.y;
+  }
+
+  let totalKE = 0;
+  for (let s = 0; s < NUM_SPECIES; s++) {
+    if (count[s] === 0) continue;
+    avgX[s] /= count[s];
+    avgY[s] /= count[s];
+
+    // Compute spread (variance from centroid) as inverse density
+    let variance = 0;
+    for (let i = 0; i < particles.length; i++) {
+      if (particles[i].species !== s) continue;
+      const dx = particles[i].x - avgX[s];
+      const dy = particles[i].y - avgY[s];
+      variance += dx * dx + dy * dy;
+    }
+    variance /= count[s];
+    const spread = Math.sqrt(variance);
+
+    // Density: tighter cluster = higher value (inverse of spread, normalized)
+    const maxSpread = Math.max(canvas.width, canvas.height) * 0.5;
+    const density = Math.max(0, 1 - spread / maxSpread);
+
+    // Smooth
+    speciesEnergy[s] += (ke[s] / count[s] - speciesEnergy[s]) * 0.1;
+    speciesDensity[s] += (density - speciesDensity[s]) * 0.08;
+    totalKE += ke[s];
+  }
+
+  totalEnergy += (totalKE / particles.length - totalEnergy) * 0.05;
+}
+
+function updateAudio() {
+  if (!audioStarted || audioMuted) return;
+
+  const t = audioCtx.currentTime;
+
+  // Map total energy to drone and noise levels
+  const energyNorm = Math.min(totalEnergy / 50, 1);
+  droneGain.gain.setTargetAtTime(0.03 + energyNorm * 0.05, t, 0.3);
+  noiseGain.gain.setTargetAtTime(0.005 + energyNorm * 0.015, t, 0.3);
+
+  // Per species
+  for (let s = 0; s < NUM_SPECIES; s++) {
+    const { gain, filter } = speciesOscs[s];
+
+    // Volume: based on density (clustered = audible)
+    const vol = speciesDensity[s] * 0.04;
+    gain.gain.setTargetAtTime(vol, t, 0.4);
+
+    // Filter: open up with energy
+    const keNorm = Math.min(speciesEnergy[s] / 30, 1);
+    const cutoff = 150 + keNorm * 1200 + speciesDensity[s] * 600;
+    filter.frequency.setTargetAtTime(cutoff, t, 0.3);
+  }
+}
+
+function toggleMute() {
+  if (!audioStarted) {
+    initAudio();
+    audioMuted = false;
+  } else {
+    audioMuted = !audioMuted;
+  }
+  const btn = document.getElementById('mute-btn');
+  if (audioMuted) {
+    btn.textContent = '\u{1f507}';
+    btn.classList.add('muted');
+    if (masterGain) masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.1);
+  } else {
+    btn.textContent = '\u{1f50a}';
+    btn.classList.remove('muted');
+    if (masterGain) masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.1);
+  }
+}
+
+function playSfx(freq, duration, type) {
+  if (!audioStarted || audioMuted) return;
+  const osc = audioCtx.createOscillator();
+  osc.type = type || 'sine';
+  osc.frequency.value = freq;
+  const g = audioCtx.createGain();
+  g.gain.value = 0.08;
+  g.gain.setTargetAtTime(0, audioCtx.currentTime + duration * 0.3, duration * 0.4);
+  osc.connect(g);
+  g.connect(compressor);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playClickSfx() {
+  if (!audioStarted || audioMuted) return;
+  const t = audioCtx.currentTime;
+
+  // Soft tonal "boop" — frequency sweeps down
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(600, t);
+  osc.frequency.exponentialRampToValueAtTime(120, t + 0.25);
+
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.12, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+
+  const filt = audioCtx.createBiquadFilter();
+  filt.type = 'lowpass';
+  filt.frequency.setValueAtTime(1200, t);
+  filt.frequency.exponentialRampToValueAtTime(200, t + 0.25);
+  filt.Q.value = 3;
+
+  osc.connect(filt);
+  filt.connect(g);
+  g.connect(compressor);
+  osc.start(t);
+  osc.stop(t + 0.35);
+}
+
+function playReleaseSfx() {
+  if (!audioStarted || audioMuted) return;
+  const t = audioCtx.currentTime;
+
+  // Gentle upward blip on release
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, t);
+  osc.frequency.exponentialRampToValueAtTime(500, t + 0.12);
+
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.06, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+
+  osc.connect(g);
+  g.connect(compressor);
+  osc.start(t);
+  osc.stop(t + 0.2);
+}
+
+function bindAudioControls() {
+  const volEl = document.getElementById('volume');
+  volEl.addEventListener('input', () => {
+    masterVolume = parseFloat(volEl.value);
+    if (masterGain && !audioMuted) {
+      masterGain.gain.setTargetAtTime(masterVolume, audioCtx.currentTime, 0.05);
+    }
+  });
+
+  const reverbEl = document.getElementById('reverb');
+  reverbEl.addEventListener('input', () => {
+    reverbMix = parseFloat(reverbEl.value);
+    document.getElementById('reverb-val').textContent = reverbMix.toFixed(2);
+    if (dryGain) {
+      dryGain.gain.setTargetAtTime(1 - reverbMix, audioCtx.currentTime, 0.1);
+      wetGain.gain.setTargetAtTime(reverbMix, audioCtx.currentTime, 0.1);
+    }
+  });
+}
+
+// Start audio on first user interaction (browser policy)
+function onFirstInteraction() {
+  if (!audioStarted) {
+    initAudio();
+  } else if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  document.removeEventListener('click', onFirstInteraction);
+  document.removeEventListener('touchstart', onFirstInteraction);
+}
+document.addEventListener('click', onFirstInteraction);
+document.addEventListener('touchstart', onFirstInteraction);
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+
+let lastTime = 0;
+let fpsFrames = 0;
+let fpsTick = 0;
+let displayFps = 0;
+
+function loop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05) * 60 * speed; // normalize to 60fps, apply speed
+  lastTime = timestamp;
+
+  // FPS counter
+  fpsFrames++;
+  if (timestamp - fpsTick > 500) {
+    displayFps = Math.round(fpsFrames / ((timestamp - fpsTick) / 1000));
+    fpsFrames = 0;
+    fpsTick = timestamp;
+    document.getElementById('stats').textContent =
+      `${numParticles} particles · ${NUM_SPECIES} species · ${displayFps} fps`;
+  }
+
+  if (!paused) {
+    step(dt);
+
+    // Audio analysis every 6 frames (performance)
+    audioAnalysisFrame++;
+    if (audioAnalysisFrame >= 6) {
+      audioAnalysisFrame = 0;
+      analyzeSimulation();
+      updateAudio();
+    }
+  }
+  render();
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+
+window.addEventListener('resize', resize);
+resize();
+createMatrix();
+createParticles();
+renderMatrix();
+bindSliders();
+bindAudioControls();
+requestAnimationFrame(loop);
+
+</script>
+</body>
+</html>
